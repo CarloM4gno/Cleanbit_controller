@@ -1,0 +1,19 @@
+twist_mux:
+  ros__parameters:
+    # Uses TwistStamped if your nodes (Nav2) publish TwistStamped, otherwise false
+    use_stamped: false
+
+    use_angular_lock: true
+    use_linear_lock: true
+    lock_timeout: 0.2
+
+    topics:
+      navigation:
+        topic: "/cmd_vel_nav"      
+        timeout: 0.5              
+        priority: 10
+
+      joystick:
+        topic: "/cmd_vel_joy"      
+        timeout: 0.5
+        priority: 100
