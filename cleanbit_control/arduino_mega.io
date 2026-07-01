@@ -451,7 +451,7 @@ void updateOdometryCalc() {
   lastDX = encDX;
 
   float dL = (dA / PULSES_PER_REV / GEAR_RATIO) * WHEEL_CIRC;
-  float dR = (dB / PULSES_PER_REV / GEAR_RATIO) * WHEEL_CIRC;
+  float dR = -(dB / PULSES_PER_REV / GEAR_RATIO) * WHEEL_CIRC; //aggiunto un meno perchè non funzionava odometria erano sempre + 20 -20 le ruote esempio
 
   float dS  = (dR + dL) / 2.0f;
   float dTh = (dR - dL) / TRACK_BASE;
