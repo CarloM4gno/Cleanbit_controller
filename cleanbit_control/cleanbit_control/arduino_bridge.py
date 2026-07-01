@@ -22,46 +22,33 @@ class ArduinoBridge(Node):
         # Tf broadcaster
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        # Subscriber to /cmd_vel
+        # Subscriber a /cmd_vel
         self.cmd_sub = self.create_subscription(
             Twist, '/cmd_vel', self.cmd_vel_callback, 10
         )
 
-        # Timer for serial read
-        # NOTA: 20Hz invece di 50Hz — il Mega manda al massimo a 20Hz (IMU),
-        # leggere troppo spesso non serve, leggiamo tutte le righe in coda
-        # ad ogni chiamata cosi' non si accumula ritardo nel buffer seriale.
-        self.timer = self.create_timer(0.05, self.read_serial)  # 20 Hz
+        # Timer per lettura seriale (20 Hz)
+        self.timer = self.create_timer(0.05, self.read_serial)
 
-        # Odometry variables
+        # Variabili odometria
         self.x = 0.0
         self.y = 0.0
         self.th = 0.0
 
+        # Contatore righe totali ricevute (per capire se la seriale comunica affatto)
+        self.lines_received = 0
+
     def cmd_vel_callback(self, msg: Twist):
-        """
-        Sends vel commands to Arduino.
-        Protocol: "V {v_lin} {v_ang}\n"
-        """
         command = f"V {msg.linear.x:.3f} {msg.angular.z:.3f}\n"
         self.ser.write(command.encode())
         self.get_logger().debug(f"Comando inviato: {command.strip()}")
 
     def read_serial(self):
-        """
-        Svuota tutto il buffer seriale disponibile ad ogni chiamata,
-        cosi' non accumuliamo ritardo se il Mega manda dati piu'
-        velocemente di quanto il timer ROS interroghi la seriale.
-
-        Righe gestite:
-        - "O x y th"               -> odometria
-        - "J pos_left pos_right"   -> joint states (radianti)
-        - "I ax ay az gx gy gz"    -> dati IMU grezzi
-        """
         while self.ser.in_waiting > 0:
             line = self.ser.readline().decode(errors='ignore').strip()
             if not line:
                 continue
+            self.lines_received += 1
             self.process_line(line)
 
     def process_line(self, line):
@@ -71,24 +58,48 @@ class ArduinoBridge(Node):
                 self.x = float(x)
                 self.y = float(y)
                 self.th = float(th)
+
+                if self.x == 0.0 and self.y == 0.0 and self.th == 0.0:
+                    self.get_logger().warn(
+                        "Odometria ricevuta dal Mega ma x=y=th=0.0 — "
+                        "seriale comunica ma gli encoder non stanno incrementando "
+                        "(o il robot e' davvero fermo).",
+                        throttle_duration_sec=5.0
+                    )
+
                 self.publish_odom()
 
             elif line.startswith("J"):
                 _, pos_left, pos_right = line.split()
-                self.publish_joint_states(float(pos_left), float(pos_right))
+                pos_left, pos_right = float(pos_left), float(pos_right)
+
+                if pos_left == 0.0 and pos_right == 0.0:
+                    self.get_logger().warn(
+                        "Joint states a zero (pos_left=pos_right=0.0) — "
+                        "controlla che gli encoder stiano contando.",
+                        throttle_duration_sec=5.0
+                    )
+
+                self.publish_joint_states(pos_left, pos_right)
 
             elif line.startswith("I"):
                 _, ax, ay, az, gx, gy, gz = line.split()
-                self.publish_imu(
-                    float(ax), float(ay), float(az),
-                    float(gx), float(gy), float(gz)
-                )
+                ax, ay, az = float(ax), float(ay), float(az)
+                gx, gy, gz = float(gx), float(gy), float(gz)
+
+                if ax == 0.0 and ay == 0.0 and az == 0.0:
+                    self.get_logger().warn(
+                        "IMU a zero su tutti e 3 gli assi accelerometro — "
+                        "sospetto: MPU6050 non risponde su I2C (az dovrebbe essere ~1g a riposo).",
+                        throttle_duration_sec=5.0
+                    )
+
+                self.publish_imu(ax, ay, az, gx, gy, gz)
 
         except Exception as e:
             self.get_logger().warn(f"Serial parsing error: {e}, line: {line}")
 
     def publish_odom(self):
-        # Odometry msg
         odom = Odometry()
         now = self.get_clock().now().to_msg()
         odom.header.stamp = now
@@ -106,7 +117,7 @@ class ArduinoBridge(Node):
 
         self.odom_pub.publish(odom)
 
-        # TF odom -> body_link
+        # TF odom -> body_link (RIATTIVATA: serve a slam_toolbox per trasformare gli scan laser)
         t = TransformStamped()
         t.header.stamp = now
         t.header.frame_id = "odom"
@@ -125,12 +136,6 @@ class ArduinoBridge(Node):
         self.joint_pub.publish(js)
 
     def publish_imu(self, ax, ay, az, gx, gy, gz):
-        """
-        Pubblica i dati grezzi IMU.
-        - Accelerazione: convertita da [g] a [m/s^2] (Arduino manda in g)
-        - Velocita' angolare: convertita da [deg/s] a [rad/s]
-        ROS si aspetta SI units: m/s^2 e rad/s.
-        """
         G_TO_MS2 = 9.80665
         DEG_TO_RAD = 0.017453292519943295
 
@@ -146,7 +151,6 @@ class ArduinoBridge(Node):
         msg.angular_velocity.y = gy * DEG_TO_RAD
         msg.angular_velocity.z = gz * DEG_TO_RAD
 
-        # Orientamento non disponibile da MPU6050 grezzo (serve fusion)
         msg.orientation_covariance[0] = -1.0
 
         self.imu_pub.publish(msg)
