@@ -69,12 +69,7 @@ def generate_launch_description():
     )
 
 
-    static_tf_pub_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=['0', '0', '0', '0', '0', '0', 'laser_frame', 'spazz.ino/body_link/laser_frame'],
-        output='screen'
-    )
+
 
 # 3. Lidar Node
     lidar_launch = IncludeLaunchDescription(
