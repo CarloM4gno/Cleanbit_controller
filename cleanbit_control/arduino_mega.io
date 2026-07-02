@@ -357,8 +357,10 @@ void handleROS() {
         v_lin = line.substring(0, sp).toFloat();
         v_ang = line.substring(sp + 1).toFloat();
 
-        float v_l = v_lin + v_ang * TRACK_BASE / 2.0f;
-        float v_r = v_lin - v_ang * TRACK_BASE / 2.0f;
+        float v_r = v_lin + v_ang * TRACK_BASE / 2.0f; // CARLO:  cambiato poichè girava a destra quando doveva girare a sinistra e viceversa
+        float v_l = v_lin - v_ang * TRACK_BASE / 2.0f;
+
+  
         setTractionSpeed(v_l, true);
         setTractionSpeed(v_r, false);
       }
