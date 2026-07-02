@@ -9,8 +9,8 @@
          Y = sinistra
          Z = alto
 
-         In questo modello:
-         davanti = lato ruote motrici
+         base_link è il frame principale corretto.
+         body_link è la geometria ruotata di 180 gradi rispetto a base_link.
     ========================================================== -->
 
     <xacro:property name="PI" value="3.14159265"/>
@@ -43,7 +43,6 @@
     <xacro:property name="laser_radius" value="0.04"/>
     <xacro:property name="laser_height" value="0.035"/>
 
-    <!-- Control Parameters -->
     <xacro:property name="max_linear_acceleration" value="10"/>
 
 
@@ -73,9 +72,22 @@
 
 
     <!-- ========================================================= -->
-    <!-- Body Link -->
-    <!-- body_link è il frame principale del robot.
-         X positivo = davanti, cioè lato ruote motrici.
+    <!-- BASE LINK -->
+    <!-- Questo è il frame principale ROS.
+         In RViz devi guardare questo:
+         X rosso = avanti reale del robot
+         Y verde = sinistra
+         Z blu = alto
+    ========================================================== -->
+
+    <link name="base_link"/>
+
+
+    <!-- ========================================================= -->
+    <!-- BODY LINK -->
+    <!-- Geometria del corpo.
+         Viene ruotata di 180 gradi rispetto a base_link
+         tramite base_to_body_joint.
     ========================================================== -->
 
     <link name="body_link">
@@ -106,15 +118,28 @@
 
 
     <!-- ========================================================= -->
+    <!-- BASE TO BODY JOINT -->
+    <!-- Questa è la correzione dei 180 gradi.
+         base_link rimane corretto.
+         body_link viene girato.
+    ========================================================== -->
+
+    <joint name="base_to_body_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="body_link"/>
+        <origin xyz="0 0 0" rpy="0 0 ${PI}"/>
+    </joint>
+
+
+    <!-- ========================================================= -->
     <!-- Base Footprint -->
-    <!-- Frame a terra usato spesso da Nav2/RViz.
-         Lo lascio collegato a body_link.
+    <!-- Frame a terra collegato a base_link, non a body_link.
     ========================================================== -->
 
     <link name="base_footprint"/>
 
     <joint name="base_footprint_joint" type="fixed">
-        <parent link="body_link"/>
+        <parent link="base_link"/>
         <child link="base_footprint"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
@@ -122,8 +147,9 @@
 
     <!-- ========================================================= -->
     <!-- Front Marker -->
-    <!-- Piccolo marker davanti per vedere subito il muso in RViz.
-         È sul lato +X.
+    <!-- Marker davanti rispetto al body_link.
+         Siccome body_link è ruotato di PI rispetto a base_link,
+         questo marker serve solo come riferimento visivo del modello.
     ========================================================== -->
 
     <link name="front_marker_link">
@@ -145,8 +171,8 @@
 
     <!-- ========================================================= -->
     <!-- Left Drive Wheel -->
-    <!-- Ruota motrice sinistra DAVANTI.
-         X positivo perché davanti = lato ruote motrici.
+    <!-- Ruota motrice sinistra.
+         Davanti del modello body_link: X positivo.
     ========================================================== -->
 
     <link name="left_wheel_link">
@@ -178,10 +204,7 @@
     <joint name="left_wheel_joint" type="continuous">
         <parent link="body_link"/>
         <child link="left_wheel_link"/>
-
-        <!-- Prima era -${wheel_offset}; ora è +${wheel_offset} -->
         <origin xyz="${wheel_offset} ${wheel_separation/2} -${wheel_radius/2}" rpy="0 0 0"/>
-
         <axis xyz="0 1 0"/>
         <limit effort="100" velocity="10.0"/>
         <dynamics damping="0.1" friction="0.1"/>
@@ -190,7 +213,7 @@
 
     <!-- ========================================================= -->
     <!-- Right Drive Wheel -->
-    <!-- Ruota motrice destra DAVANTI.
+    <!-- Ruota motrice destra.
     ========================================================== -->
 
     <link name="right_wheel_link">
@@ -222,10 +245,7 @@
     <joint name="right_wheel_joint" type="continuous">
         <parent link="body_link"/>
         <child link="right_wheel_link"/>
-
-        <!-- Prima era -${wheel_offset}; ora è +${wheel_offset} -->
         <origin xyz="${wheel_offset} ${-wheel_separation/2} -${wheel_radius/2}" rpy="0 0 0"/>
-
         <axis xyz="0 1 0"/>
         <limit effort="100" velocity="10.0"/>
         <dynamics damping="0.1" friction="0.1"/>
@@ -234,8 +254,7 @@
 
     <!-- ========================================================= -->
     <!-- Rear Left Wheel -->
-    <!-- Ruota posteriore sinistra, solo visiva/fissa.
-         Sostituisce il caster.
+    <!-- Ruota posteriore sinistra, fissa/visiva.
     ========================================================== -->
 
     <link name="rear_left_wheel_link">
@@ -267,15 +286,13 @@
     <joint name="rear_left_wheel_joint" type="fixed">
         <parent link="body_link"/>
         <child link="rear_left_wheel_link"/>
-
-        <!-- Dietro = X negativo -->
         <origin xyz="-${wheel_offset} ${wheel_separation/2} -${wheel_radius/2}" rpy="0 0 0"/>
     </joint>
 
 
     <!-- ========================================================= -->
     <!-- Rear Right Wheel -->
-    <!-- Ruota posteriore destra, solo visiva/fissa.
+    <!-- Ruota posteriore destra, fissa/visiva.
     ========================================================== -->
 
     <link name="rear_right_wheel_link">
@@ -307,8 +324,6 @@
     <joint name="rear_right_wheel_joint" type="fixed">
         <parent link="body_link"/>
         <child link="rear_right_wheel_link"/>
-
-        <!-- Dietro = X negativo -->
         <origin xyz="-${wheel_offset} ${-wheel_separation/2} -${wheel_radius/2}" rpy="0 0 0"/>
     </joint>
 
@@ -316,8 +331,6 @@
     <!-- ========================================================= -->
     <!-- Left Track Visual -->
     <!-- Cingolo sinistro visivo.
-         Non è una ruota motrice fisica per il plugin/controllo,
-         serve a rappresentare meglio il robot.
     ========================================================== -->
 
     <link name="left_track_link">
@@ -393,16 +406,8 @@
 
     <!-- ========================================================= -->
     <!-- LIDAR -->
-    <!-- Lidar davanti, lato +X.
-         Il frame laser_frame deve avere:
-         X avanti
-         Y sinistra
-         Z alto
-
-         Se il LaserScan in RViz risulta ancora ruotato di 180°,
-         cambia solo il rpy del laser_joint da:
-         rpy="0 0 0"
-         a:
+    <!-- Lidar davanti rispetto al body_link.
+         Se il LaserScan risulta girato, modifica solo laser_joint:
          rpy="0 0 ${PI}"
     ========================================================== -->
 
@@ -435,8 +440,6 @@
     <joint name="laser_joint" type="fixed">
         <parent link="body_link"/>
         <child link="laser_frame"/>
-
-        <!-- Lidar davanti: X positivo -->
         <origin xyz="${body_length/2 - 0.03} 0 0.125" rpy="0 0 0"/>
     </joint>
 
