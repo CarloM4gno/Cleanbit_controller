@@ -9,8 +9,8 @@
          Y = sinistra
          Z = alto
 
-         base_link è il frame principale corretto.
-         body_link è la geometria ruotata di 180 gradi rispetto a base_link.
+         Davanti reale del robot = lato ruote motrici + lidar.
+         Quindi ruote motrici e lidar stanno a X positivo.
     ========================================================== -->
 
     <xacro:property name="PI" value="3.14159265"/>
@@ -73,9 +73,8 @@
 
     <!-- ========================================================= -->
     <!-- BASE LINK -->
-    <!-- Questo è il frame principale ROS.
-         In RViz devi guardare questo:
-         X rosso = avanti reale del robot
+    <!-- Frame principale ROS:
+         X rosso = avanti reale
          Y verde = sinistra
          Z blu = alto
     ========================================================== -->
@@ -85,9 +84,8 @@
 
     <!-- ========================================================= -->
     <!-- BODY LINK -->
-    <!-- Geometria del corpo.
-         Viene ruotata di 180 gradi rispetto a base_link
-         tramite base_to_body_joint.
+    <!-- Corpo del robot.
+         NON viene più ruotato di 180 gradi.
     ========================================================== -->
 
     <link name="body_link">
@@ -119,21 +117,21 @@
 
     <!-- ========================================================= -->
     <!-- BASE TO BODY JOINT -->
-    <!-- Questa è la correzione dei 180 gradi.
-         base_link rimane corretto.
-         body_link viene girato.
+    <!-- Correzione importante:
+         prima era rpy="0 0 ${PI}", e quello girava tutto di 180°.
+         Ora è zero.
     ========================================================== -->
 
     <joint name="base_to_body_joint" type="fixed">
         <parent link="base_link"/>
         <child link="body_link"/>
-        <origin xyz="0 0 0" rpy="0 0 ${PI}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
 
 
     <!-- ========================================================= -->
-    <!-- Base Footprint -->
-    <!-- Frame a terra collegato a base_link, non a body_link.
+    <!-- BASE FOOTPRINT -->
+    <!-- Frame a terra collegato a base_link.
     ========================================================== -->
 
     <link name="base_footprint"/>
@@ -146,10 +144,8 @@
 
 
     <!-- ========================================================= -->
-    <!-- Front Marker -->
-    <!-- Marker davanti rispetto al body_link.
-         Siccome body_link è ruotato di PI rispetto a base_link,
-         questo marker serve solo come riferimento visivo del modello.
+    <!-- FRONT MARKER -->
+    <!-- Marker visivo sul davanti reale, cioè lato +X.
     ========================================================== -->
 
     <link name="front_marker_link">
@@ -170,9 +166,10 @@
 
 
     <!-- ========================================================= -->
-    <!-- Left Drive Wheel -->
-    <!-- Ruota motrice sinistra.
-         Davanti del modello body_link: X positivo.
+    <!-- LEFT DRIVE WHEEL -->
+    <!-- Ruota motrice sinistra DAVANTI.
+         X positivo = davanti.
+         Y positivo = sinistra.
     ========================================================== -->
 
     <link name="left_wheel_link">
@@ -212,8 +209,10 @@
 
 
     <!-- ========================================================= -->
-    <!-- Right Drive Wheel -->
-    <!-- Ruota motrice destra.
+    <!-- RIGHT DRIVE WHEEL -->
+    <!-- Ruota motrice destra DAVANTI.
+         X positivo = davanti.
+         Y negativo = destra.
     ========================================================== -->
 
     <link name="right_wheel_link">
@@ -253,7 +252,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- Rear Left Wheel -->
+    <!-- REAR LEFT WHEEL -->
     <!-- Ruota posteriore sinistra, fissa/visiva.
     ========================================================== -->
 
@@ -291,7 +290,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- Rear Right Wheel -->
+    <!-- REAR RIGHT WHEEL -->
     <!-- Ruota posteriore destra, fissa/visiva.
     ========================================================== -->
 
@@ -329,7 +328,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- Left Track Visual -->
+    <!-- LEFT TRACK VISUAL -->
     <!-- Cingolo sinistro visivo.
     ========================================================== -->
 
@@ -367,7 +366,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- Right Track Visual -->
+    <!-- RIGHT TRACK VISUAL -->
     <!-- Cingolo destro visivo.
     ========================================================== -->
 
@@ -406,8 +405,8 @@
 
     <!-- ========================================================= -->
     <!-- LIDAR -->
-    <!-- Lidar davanti rispetto al body_link.
-         Se il LaserScan risulta girato, modifica solo laser_joint:
+    <!-- Lidar davanti: X positivo.
+         Se il LaserScan risulta girato di 180°, ruota SOLO questo joint:
          rpy="0 0 ${PI}"
     ========================================================== -->
 
