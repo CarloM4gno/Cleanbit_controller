@@ -148,7 +148,6 @@ def generate_launch_description():
         robot_state_publisher_node,
         lidar_launch,
         arduino_bridge_node,
-        static_tf_pub_node,
         joy_node,
         teleop_node,
         slam_toolbox_launch,
